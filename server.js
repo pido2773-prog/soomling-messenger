@@ -167,6 +167,17 @@ app.get('/api/stories', auth, (req, res) => {
   res.json({ stories: fresh });
 });
 
+app.delete('/api/messages/:id', auth, (req, res) => {
+  const m = db.messages.find(x => x.id === req.params.id);
+  if (!m) return res.status(404).json({ error: 'not_found' });
+  if (m.fromUser !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+  m.deleted = true; saveDB();
+  const peer = m.toUser;
+  emitToUser(peer, 'message:deleted', { id: m.id, peer: req.user.id });
+  emitToUser(req.user.id, 'message:deleted', { id: m.id, peer });
+  res.json({ ok: true });
+});
+
 // ---------- realtime ----------
 const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 15e6 });
