@@ -112,6 +112,13 @@ input:focus,textarea:focus{border-color:var(--accent)}
 #messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px;background:var(--panel)}
 .msg{max-width:60%;padding:8px 12px;border-radius:12px;font-size:14.5px;line-height:1.4;animation:msgIn .25s;word-wrap:break-word}
 .msg.me{align-self:flex-end;background:var(--accent);border-bottom-right-radius:3px}
+.msg{position:relative}
+.msg .msgDel{position:absolute;top:-8px;left:-28px;font-size:13px;opacity:0;cursor:pointer;transition:.15s;padding:4px;border-radius:6px}
+.msg:hover .msgDel{opacity:.7}
+.msg .msgDel:hover{opacity:1;background:var(--hover)}
+.msg.me .msgDel{left:auto;right:-28px}
+.msg.selected{outline:2px solid var(--accent);outline-offset:2px}
+#selectBar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--glass-border);background:var(--glass)}
 .msg.them{align-self:flex-start;background:var(--glass);border:1px solid var(--glass-border);border-bottom-left-radius:3px}
 .msg img{max-width:220px;border-radius:10px;display:block;margin-top:6px}
 .msg time{display:block;font-size:10px;color:rgba(255,255,255,.6);margin-top:4px;text-align:right}
@@ -174,6 +181,16 @@ input:focus,textarea:focus{border-color:var(--accent)}
   #infoPanel{display:none}
   .msg{max-width:78%}
   #backBtn{display:flex!important}
+}
+@media(max-width:400px){
+  .authBox{padding:22px}
+  #chatHead{padding:8px 10px;gap:8px}
+  #chatHead .avatar{width:36px;height:36px}
+  .msg{max-width:85%;font-size:13.5px}
+  #inputBar{padding:8px;gap:5px}
+  .modal{width:100%!important}
+  .storyItem{width:48px}
+  .storyRing{width:46px;height:46px}
 }
 
 </style>
@@ -240,11 +257,23 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div id="chatContent" class="hidden" style="display:flex;flex-direction:column;height:100%">
       <div id="chatHead">
         <button class="icon-btn" id="backBtn" style="display:none" onclick="closeChatMobile()">←</button>
-        <div class="avatar" id="chAv">?</div>
-        <div class="nm"><b id="chName"></b><span id="chStatus"></span></div>
+        <div class="avatar" id="chAv" style="cursor:pointer" onclick="openProfileView(activeChatUserId)">?</div>
+        <div class="nm" style="cursor:pointer" onclick="openProfileView(activeChatUserId)"><b id="chName"></b><span id="chStatus"></span></div>
+        <button class="icon-btn" title="Поиск по сообщениям" onclick="toggleMsgSearch()"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.76 10.68l4.78 4.78 1.41-1.41-4.78-4.78A6 6 0 0 0 10 4zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"/></svg></button>
         <button class="icon-btn" title="Аудиозвонок" onclick="startCall('audio')"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.5.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.9 21 3 13.1 3 3c0-.6.4-1 1-1h3.2c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.5.1.4 0 .8-.2 1L6.6 10.8z"/></svg></button>
         <button class="icon-btn" title="Видеозвонок" onclick="startCall('video')"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg></button>
         <button class="icon-btn" title="Блокировать" id="blockBtn" onclick="toggleBlock()"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a7.9 7.9 0 0 1 4.9 1.7L5.7 16.9A8 8 0 0 1 12 4zm0 16a7.9 7.9 0 0 1-4.9-1.7L18.3 7.1A8 8 0 0 1 12 20z"/></svg></button>
+      </div>
+      <div id="msgSearchBar" class="hidden" style="display:flex;gap:8px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--glass-border)">
+        <input id="msgSearchInput" placeholder="Поиск по сообщениям..." style="flex:1" oninput="doMsgSearch()">
+        <span id="msgSearchCount" style="color:var(--dim);font-size:12px"></span>
+        <button class="icon-btn" onclick="toggleMsgSearch()">✕</button>
+      </div>
+      <div id="selectBar" class="hidden">
+        <button class="icon-btn" onclick="exitSelectMode()">✕</button>
+        <span>Выбрано: <b id="selectCount">0</b></span>
+        <div style="flex:1"></div>
+        <button class="btn-ghost" onclick="deleteSelected()">🗑 Удалить</button>
       </div>
       <div id="messages"></div>
       <div id="voiceRecUI" class="hidden" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--glass-border)">
@@ -316,6 +345,24 @@ input:focus,textarea:focus{border-color:var(--accent)}
         <span style="color:var(--dim)">Версия 2.0.0 · сервер · 2025</span>
         <span style="color:var(--dim)">Автор: Soomling</span>
         <a href="mailto:Pido2773@gmail.com" style="color:var(--accent-h)">Pido2773@gmail.com</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE VIEW MODAL -->
+<div class="modalWrap hidden" id="profileModal">
+  <div class="glass modal" style="width:340px;text-align:center">
+    <div class="modalHead"><b>Профиль</b><button class="icon-btn" onclick="closeModal('profileModal')">✕</button></div>
+    <div class="modalBody" style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div class="avatar" id="pvAv" style="width:90px;height:90px;font-size:30px"></div>
+      <h3 id="pvName" style="font-size:17px"></h3>
+      <span id="pvStatus" style="color:var(--dim);font-size:13px"></span>
+      <div style="width:100%;text-align:left;margin-top:10px">
+        <label style="font-size:11px;color:var(--dim)">Телефон</label>
+        <div id="pvPhone" style="margin-bottom:10px"></div>
+        <label style="font-size:11px;color:var(--dim)">О себе</label>
+        <div id="pvBio"></div>
       </div>
     </div>
   </div>
@@ -442,6 +489,7 @@ async function boot(){
   renderAvatar($('myAv'),me);
   applySettings(loadSettings());
   connectSocket();
+  await ensureSpecialContacts();
   await loadConversations(); await loadCalls(); await loadStories();
 }
 function connectSocket(){
@@ -450,15 +498,20 @@ function connectSocket(){
   socket.on('disconnect',()=>{ $('connStatus').textContent='⚠️ Нет соединения с сервером...'; });
   socket.on('auth:ok',u=>{ me=u; usersCache[me.id]=me; renderAvatar($('myAv'),me); });
   socket.on('message:new',async msg=>{
-    (messagesCache[msg.fromUser===me.id?msg.toUser:msg.fromUser]=messagesCache[msg.fromUser===me.id?msg.toUser:msg.fromUser]||[]).push(msg);
+    const peer=msg.fromUser===me.id?msg.toUser:msg.fromUser;
+    (messagesCache[peer]=messagesCache[peer]||[]).push(msg);
     await loadConversations();
-    if(activeChatUserId===(msg.fromUser===me.id?msg.toUser:msg.fromUser)) renderMessages();
+    if(activeChatUserId===peer) appendMessageEl(msg);
     if(msg.toUser===me.id){ playSound(); vibrate(); }
+  });
+  socket.on('message:deleted',({id,peer})=>{
+    const arr=messagesCache[peer]; if(arr){ const m=arr.find(x=>x.id===id); if(m) m.deleted=true; }
+    document.querySelector(`[data-mid="${id}"]`)?.remove();
   });
   socket.on('typing',data=>{
     if(activeChatUserId===data.from){
-      typingFromPeer=true; renderMessages();
-      clearTimeout(typingTimeout); typingTimeout=setTimeout(()=>{typingFromPeer=false;renderMessages();},2000);
+      typingFromPeer=true; renderTypingRow();
+      clearTimeout(typingTimeout); typingTimeout=setTimeout(()=>{typingFromPeer=false;renderTypingRow();},2000);
     }
   });
   socket.on('presence',data=>{
@@ -523,21 +576,52 @@ function updateRailBadge(){
   const total=conversations.reduce((s,c)=>s+c.unread,0);
   const b=$('railBadge'); if(total>0){b.textContent=total>99?'99+':total;b.classList.remove('hidden');}else b.classList.add('hidden');
 }
+let adminId=null;
+async function ensureSpecialContacts(){
+  if(!adminId){
+    try{ const {user}=await api('/api/users/by-phone/'+encodeURIComponent(ADMIN_PHONE)); adminId=user.id; usersCache[user.id]=user; }catch(e){}
+  }
+}
+const ADMIN_PHONE='+79996081231';
 function renderChatList(){
   const q=($('searchInput').value||'').toLowerCase();
   const list=$('chatList'); list.innerHTML='';
-  const filtered=conversations.filter(c=>!q||c.user.displayName.toLowerCase().includes(q)||c.user.phone.includes(q))
-    .sort((a,b)=>(b.lastMessage?b.lastMessage.createdAt:0)-(a.lastMessage?a.lastMessage.createdAt:0));
-  if(!filtered.length){ list.innerHTML=`<div style="padding:20px;color:var(--dim);text-align:center;font-size:13px">Нет чатов. Нажмите ✚ чтобы начать новый.</div>`; }
+  const pinned=pinnedIds();
+  let filtered=conversations.filter(c=>!q||c.user.displayName.toLowerCase().includes(q)||c.user.phone.includes(q));
+  filtered.sort((a,b)=>{
+    const ap=pinned.includes(a.user.id)?1:0, bp=pinned.includes(b.user.id)?1:0;
+    if(ap!==bp) return bp-ap;
+    return (b.lastMessage?b.lastMessage.createdAt:0)-(a.lastMessage?a.lastMessage.createdAt:0);
+  });
+  // special: Избранное (chat with self) — always at top if no query
+  if(!q && me){
+    const fav=document.createElement('div'); fav.className='chatItem'+(activeChatUserId===me.id?' active':'');
+    fav.innerHTML=`<div class="avatar" style="background:linear-gradient(135deg,var(--accent),#22c55e);display:flex;align-items:center;justify-content:center;font-size:20px">⭐</div>
+      <div class="ciMeta"><div class="ciTop"><b>Избранное</b></div><div class="ciSub"><em>Сохранённые сообщения</em></div></div>`;
+    fav.onclick=()=>openChat(me.id);
+    list.appendChild(fav);
+  }
+  // special: Поддержка (admin/creator), if I'm not the admin myself
+  if(!q && adminId && me && adminId!==me.id && !conversations.find(c=>c.user.id===adminId)){
+    const admin=usersCache[adminId];
+    const sup=document.createElement('div'); sup.className='chatItem';
+    sup.innerHTML=`<div class="avatar"></div><div class="ciMeta"><div class="ciTop"><b>${escapeHtml(admin?.displayName||'Поддержка')}${badgeHtml(admin)}</b></div><div class="ciSub"><em>Напишите нам</em></div></div>`;
+    renderAvatar(sup.querySelector('.avatar'),admin||{id:adminId,displayName:'Поддержка'});
+    sup.onclick=()=>openChat(adminId);
+    list.appendChild(sup);
+  }
+  if(!filtered.length && list.children.length===0){ list.innerHTML=`<div style="padding:20px;color:var(--dim);text-align:center;font-size:13px">Нет чатов. Нажмите ✚ чтобы начать новый.</div>`; }
   filtered.forEach(({user:u,lastMessage:lm,unread})=>{
     const blocked=(me.blocked||[]).includes(u.id)||(u.blocked||[]).includes(me.id);
     const div=document.createElement('div'); div.className='chatItem'+(activeChatUserId===u.id?' active':'');
     const preview = blocked?'🚫 Заблокировано': lm ? (lm.type==='image'?'📷 Фото':lm.type==='voice'?'🎤 Голосовое':lm.text) : 'Нет сообщений';
+    const pinIcon = pinned.includes(u.id) ? '<span style="margin-right:3px">📌</span>' : '';
     div.innerHTML=`<div class="avatar"></div><div class="ciMeta">
-      <div class="ciTop"><b>${escapeHtml(u.displayName)}${badgeHtml(u)}</b><span>${lm?fmtDay(lm.createdAt):''}</span></div>
+      <div class="ciTop"><b>${pinIcon}${escapeHtml(u.displayName)}${badgeHtml(u)}</b><span>${lm?fmtDay(lm.createdAt):''}</span></div>
       <div class="ciSub"><em>${escapeHtml(preview).slice(0,30)}</em>${unread?`<span class="badge">${unread}</span>`:''}</div></div>`;
     renderAvatar(div.querySelector('.avatar'),u);
     div.onclick=()=>openChat(u.id);
+    div.oncontextmenu=(e)=>{ e.preventDefault(); togglePin(u.id,e); };
     list.appendChild(div);
   });
   updateRailBadge();
@@ -582,7 +666,10 @@ async function openChat(uid){
   $('emptyChat').classList.add('hidden'); $('chatContent').classList.remove('hidden');
   $('sidebar').classList.add('away'); $('chatPanel').classList.add('show'); $('backBtn').style.display='flex';
   const u=await getUserCached(uid);
-  renderAvatar($('chAv'),u); $('chName').innerHTML=escapeHtml(u.displayName)+badgeHtml(u); updateStatusLine(u);
+  renderAvatar($('chAv'),u);
+  $('chName').innerHTML = uid===me.id ? '⭐ Избранное' : escapeHtml(u.displayName)+badgeHtml(u);
+  if(uid===me.id){ $('chStatus').textContent='Сохранённые сообщения'; $('chStatus').style.color='var(--dim)'; }
+  else updateStatusLine(u);
   const blockedByMe=(me.blocked||[]).includes(uid);
   $('blockBtn').style.opacity=blockedByMe?'1':'.6'; $('blockBtn').style.background=blockedByMe?'rgba(239,68,68,.4)':'';
   const {messages}=await api('/api/messages/'+uid);
@@ -590,27 +677,111 @@ async function openChat(uid){
   renderMessages(); renderChatList();
   $('msgInput').value=''; $('msgInput').focus();
 }
-function updateStatusLine(u){ $('chStatus').textContent = u.status==='online' ? 'онлайн' : 'был(а) в сети '+fmtDay(u.lastSeen)+' '+fmtTime(u.lastSeen); }
+function updateStatusLine(u){
+  const el=$('chStatus');
+  if(u.status==='online'){ el.textContent='в сети'; el.style.color='var(--accent)'; return; }
+  el.style.color='var(--dim)';
+  const now=Date.now(), sameDay=new Date(u.lastSeen).toDateString()===new Date(now).toDateString();
+  el.textContent = 'был(а) в сети ' + (sameDay? fmtTime(u.lastSeen) : fmtDay(u.lastSeen)+' в '+fmtTime(u.lastSeen));
+}
 function closeChatMobile(){ $('sidebar').classList.remove('away'); $('chatPanel').classList.remove('show'); }
+let selectMode=false, selectedIds=new Set();
+function buildMsgEl(m){
+  const d=document.createElement('div'); d.className='msg '+(m.fromUser===me.id?'me':'them'); d.dataset.mid=m.id;
+  if(m.type==='voice'){
+    const dur=m.duration||0, mm=String(Math.floor(dur/60)).padStart(2,'0'), ss=String(dur%60).padStart(2,'0');
+    d.innerHTML=`<div style="display:flex;align-items:center;gap:8px;min-width:180px">${iconSvg('mic')}<audio controls src="${m.fileData}" style="height:32px;flex:1"></audio><span style="font-size:11px;color:${m.fromUser===me.id?'rgba(255,255,255,.8)':'var(--dim)'}">${mm}:${ss}</span></div><time>${fmtTime(m.createdAt)}</time>`;
+  } else if(m.type==='image'){
+    d.innerHTML=`<img src="${m.fileData}">${m.text?`<div>${escapeHtml(m.text)}</div>`:''}<time>${fmtTime(m.createdAt)}</time>`;
+  } else {
+    d.innerHTML=escapeHtml(m.text)+`<time>${fmtTime(m.createdAt)}</time>`;
+  }
+  if(m.fromUser===me.id){
+    const del=document.createElement('span'); del.className='msgDel'; del.title='Удалить'; del.innerHTML='🗑';
+    del.onclick=(e)=>{ e.stopPropagation(); deleteMessage(m.id); };
+    d.appendChild(del);
+  }
+  d.onclick=()=>{ if(selectMode) toggleSelect(m.id,d); };
+  d.oncontextmenu=(e)=>{ e.preventDefault(); enterSelectMode(); toggleSelect(m.id,d); };
+  return d;
+}
 function renderMessages(){
   const box=$('messages'); box.innerHTML='';
-  const list=(messagesCache[activeChatUserId]||[]);
-  list.forEach(m=>{
-    const d=document.createElement('div'); d.className='msg '+(m.fromUser===me.id?'me':'them');
-    if(m.type==='voice'){
-      const dur=m.duration||0, mm=String(Math.floor(dur/60)).padStart(2,'0'), ss=String(dur%60).padStart(2,'0');
-      d.innerHTML=`<div style="display:flex;align-items:center;gap:8px;min-width:180px">${iconSvg('mic')}<audio controls src="${m.fileData}" style="height:32px;flex:1"></audio><span style="font-size:11px;color:${m.fromUser===me.id?'rgba(255,255,255,.8)':'var(--dim)'}">${mm}:${ss}</span></div><time>${fmtTime(m.createdAt)}</time>`;
-    } else if(m.type==='image'){
-      d.innerHTML=`<img src="${m.fileData}">${m.text?`<div>${escapeHtml(m.text)}</div>`:''}<time>${fmtTime(m.createdAt)}</time>`;
-    } else {
-      d.innerHTML=escapeHtml(m.text)+`<time>${fmtTime(m.createdAt)}</time>`;
-    }
-    box.appendChild(d);
-  });
-  if(typingFromPeer){ const t=document.createElement('div'); t.className='typingRow'; t.innerHTML='<span></span><span></span><span></span>'; box.appendChild(t); }
+  const list=(messagesCache[activeChatUserId]||[]).filter(m=>!m.deleted);
+  list.forEach(m=>box.appendChild(buildMsgEl(m)));
+  renderTypingRow();
   box.scrollTop=box.scrollHeight;
 }
-function onKeyDown(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendMessage(); } }
+function appendMessageEl(m){
+  const box=$('messages');
+  if(box.querySelector(`[data-mid="${m.id}"]`)) return;
+  const row=box.querySelector('.typingRow');
+  const el=buildMsgEl(m);
+  if(row) box.insertBefore(el,row); else box.appendChild(el);
+  box.scrollTop=box.scrollHeight;
+}
+function renderTypingRow(){
+  const box=$('messages'); let row=box.querySelector('.typingRow');
+  if(typingFromPeer){ if(!row){ row=document.createElement('div'); row.className='typingRow'; row.innerHTML='<span></span><span></span><span></span>'; box.appendChild(row); box.scrollTop=box.scrollHeight; } }
+  else if(row) row.remove();
+}
+function enterSelectMode(){ selectMode=true; selectedIds.clear(); $('selectBar').classList.remove('hidden'); updateSelectCount(); }
+function exitSelectMode(){ selectMode=false; selectedIds.clear(); $('selectBar').classList.add('hidden'); document.querySelectorAll('.msg.selected').forEach(e=>e.classList.remove('selected')); }
+function toggleSelect(id,el){ if(selectedIds.has(id)){selectedIds.delete(id);el.classList.remove('selected');} else {selectedIds.add(id);el.classList.add('selected');} updateSelectCount(); }
+function updateSelectCount(){ $('selectCount').textContent=selectedIds.size; }
+async function deleteSelected(){
+  for(const id of selectedIds){ await deleteMessage(id,true); }
+  exitSelectMode();
+}
+async function deleteMessage(id,silent){
+  try{ await api('/api/messages/'+id,{method:'DELETE'}); }catch(e){}
+  document.querySelector(`[data-mid="${id}"]`)?.remove();
+  const arr=messagesCache[activeChatUserId]; if(arr){ const m=arr.find(x=>x.id===id); if(m) m.deleted=true; }
+}
+function toggleMsgSearch(){
+  const bar=$('msgSearchBar');
+  bar.classList.toggle('hidden');
+  if(!bar.classList.contains('hidden')){ $('msgSearchInput').value=''; $('msgSearchInput').focus(); doMsgSearch(); }
+  else { document.querySelectorAll('.msg mark').forEach(m=>{ m.outerHTML=m.innerHTML; }); $('msgSearchCount').textContent=''; }
+}
+function doMsgSearch(){
+  const q=$('msgSearchInput').value.trim().toLowerCase();
+  document.querySelectorAll('#messages .msg').forEach(el=>{
+    const t=el.querySelector('time'); const raw=t? el.textContent.replace(t.textContent,'') : el.textContent;
+    el.style.display='';
+  });
+  if(!q){ $('msgSearchCount').textContent=''; return; }
+  let count=0, firstMatch=null;
+  document.querySelectorAll('#messages .msg').forEach(el=>{
+    const text=(el.textContent||'').toLowerCase();
+    const match=text.includes(q);
+    el.style.opacity = match?'1':'.25';
+    if(match){ count++; if(!firstMatch) firstMatch=el; }
+  });
+  $('msgSearchCount').textContent = count ? `Найдено: ${count}` : 'Ничего не найдено';
+  if(firstMatch) firstMatch.scrollIntoView({block:'center',behavior:'smooth'});
+}
+async function openProfileView(uid){
+  if(!uid) return;
+  const u=await getUserCached(uid); if(!u) return;
+  const modal=$('profileModal');
+  renderAvatar($('pvAv'),u);
+  $('pvName').innerHTML=escapeHtml(u.displayName)+badgeHtml(u);
+  $('pvPhone').textContent=u.phone;
+  $('pvBio').textContent=u.bio||'Нет описания';
+  $('pvStatus').textContent = u.status==='online' ? 'в сети' : 'был(а) в сети '+fmtDay(u.lastSeen);
+  modal.classList.remove('hidden');
+}
+/* ---- pinned chats (per-device) ---- */
+function pinnedIds(){ try{return JSON.parse(localStorage.getItem('sm_pinned')||'[]');}catch(e){return [];} }
+function isPinned(id){ return pinnedIds().includes(id); }
+function togglePin(id,e){
+  if(e) e.stopPropagation();
+  let p=pinnedIds();
+  if(p.includes(id)) p=p.filter(x=>x!==id); else p.push(id);
+  localStorage.setItem('sm_pinned',JSON.stringify(p));
+  renderChatList();
+}
 function onTyping(){ if(activeChatUserId && socket) socket.emit('typing',activeChatUserId); }
 function sendMessage(){
   const text=$('msgInput').value.trim(); if(!text||!activeChatUserId) return;
