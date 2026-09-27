@@ -5,24 +5,54 @@ const fs = require('fs');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { Server } = require('socket.io');
+const { MongoClient } = require('mongodb');
 
 const DB_FILE = path.join(__dirname, 'db.json');
 const ADMIN_PHONE = '+79996081231';
 const ADMIN_PASS = '1234321';
+const ELITE_PHONE = '+8888888888';
+const MONGODB_URI = process.env.MONGODB_URI || '';
 
-// ---------- tiny JSON "database" ----------
-function loadDB() {
-  if (!fs.existsSync(DB_FILE)) {
-    return { users: [], messages: [], calls: [], stories: [] };
+// ---------- persistence: MongoDB if MONGODB_URI is set, otherwise local JSON file ----------
+let mongoClient = null, mongoDb = null;
+const COLLECTIONS = ['users', 'messages', 'calls', 'stories'];
+
+async function loadDB() {
+  if (MONGODB_URI) {
+    mongoClient = new MongoClient(MONGODB_URI);
+    await mongoClient.connect();
+    mongoDb = mongoClient.db('soomling');
+    const data = { users: [], messages: [], calls: [], stories: [] };
+    for (const col of COLLECTIONS) {
+      const docs = await mongoDb.collection(col).find({}).toArray();
+      data[col] = docs.map(({ _id, ...rest }) => rest);
+    }
+    console.log('Connected to MongoDB — data will persist across deploys.');
+    return data;
   }
+  console.log('MONGODB_URI not set — using local db.json (resets on every redeploy on Render free tier).');
+  if (!fs.existsSync(DB_FILE)) return { users: [], messages: [], calls: [], stories: [] };
   try { return JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); }
   catch (e) { return { users: [], messages: [], calls: [], stories: [] }; }
 }
-let db = loadDB();
+
+let db = { users: [], messages: [], calls: [], stories: [] };
 let saveTimer = null;
 function saveDB() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => fs.writeFile(DB_FILE, JSON.stringify(db), () => {}), 150);
+  saveTimer = setTimeout(async () => {
+    if (mongoDb) {
+      for (const col of COLLECTIONS) {
+        const arr = db[col];
+        try {
+          await mongoDb.collection(col).deleteMany({});
+          if (arr.length) await mongoDb.collection(col).insertMany(arr.map(x => ({ ...x })), { ordered: false });
+        } catch (e) { console.error('Mongo save error (' + col + '):', e.message); }
+      }
+    } else {
+      fs.writeFile(DB_FILE, JSON.stringify(db), () => {});
+    }
+  }, 300);
 }
 function publicUser(u) {
   const { password, ...rest } = u;
@@ -30,14 +60,14 @@ function publicUser(u) {
 }
 function findUser(id) { return db.users.find(u => u.id === id); }
 function findByPhone(phone) { return db.users.find(u => u.phone === phone); }
+function findByUsername(username) { return db.users.find(u => u.username && u.username.toLowerCase() === username.toLowerCase()); }
 
-// seed admin/creator account
-(function seedAdmin() {
+async function seedAdmin() {
   let admin = findByPhone(ADMIN_PHONE);
   const hash = bcrypt.hashSync(ADMIN_PASS, 8);
   if (!admin) {
     admin = {
-      id: crypto.randomUUID(), phone: ADMIN_PHONE, password: hash,
+      id: crypto.randomUUID(), phone: ADMIN_PHONE, password: hash, username: null,
       displayName: 'Soomling', avatar: null, bio: 'Создатель Soomling Messenger',
       status: 'offline', lastSeen: Date.now(), createdAt: Date.now(),
       isAdmin: true, badge: 'creator', blocked: []
@@ -46,8 +76,16 @@ function findByPhone(phone) { return db.users.find(u => u.phone === phone); }
   } else {
     admin.password = hash; admin.isAdmin = true; admin.badge = 'creator';
   }
+  const elite = findByPhone(ELITE_PHONE);
+  if (elite && elite.badge !== 'creator') elite.badge = 'elite';
   saveDB();
-})();
+}
+
+async function start() {
+  db = await loadDB();
+  await seedAdmin();
+  server.listen(process.env.PORT || 3000, () => console.log('Soomling server running on :' + (process.env.PORT || 3000)));
+}
 
 // ---------- sessions (in-memory token -> userId) ----------
 const sessions = new Map();
@@ -80,9 +118,9 @@ app.post('/api/register', (req, res) => {
   if (password.length < 6) return res.status(400).json({ error: 'weak_password' });
   if (findByPhone(phone)) return res.status(409).json({ error: 'phone_taken' });
   const user = {
-    id: crypto.randomUUID(), phone, password: bcrypt.hashSync(password, 8),
+    id: crypto.randomUUID(), phone, password: bcrypt.hashSync(password, 8), username: null,
     displayName, avatar: null, bio: '', status: 'online', lastSeen: Date.now(),
-    createdAt: Date.now(), isAdmin: false, badge: null, blocked: []
+    createdAt: Date.now(), isAdmin: false, badge: phone === ELITE_PHONE ? 'elite' : null, blocked: []
   };
   db.users.push(user); saveDB();
   res.json({ token: issueToken(user.id), user: publicUser(user) });
@@ -112,13 +150,31 @@ app.get('/api/users/:id', auth, (req, res) => {
 });
 
 app.put('/api/profile', auth, (req, res) => {
-  const { displayName, bio, avatar } = req.body || {};
+  const { displayName, bio, avatar, username } = req.body || {};
   if (displayName) req.user.displayName = displayName.slice(0, 60);
   if (typeof bio === 'string') req.user.bio = bio.slice(0, 200);
   if (avatar) req.user.avatar = avatar;
+  if (typeof username === 'string') {
+    const clean = username.trim().replace(/^@/, '').slice(0, 32);
+    if (clean) {
+      if (!/^[a-zA-Z0-9_]{3,32}$/.test(clean)) return res.status(400).json({ error: 'bad_username' });
+      const taken = findByUsername(clean);
+      if (taken && taken.id !== req.user.id) return res.status(409).json({ error: 'username_taken' });
+      req.user.username = clean;
+    } else {
+      req.user.username = null;
+    }
+  }
   saveDB();
   io.emit('user:update', publicUser(req.user));
   res.json({ user: publicUser(req.user) });
+});
+
+app.delete('/api/account', auth, (req, res) => {
+  db.users = db.users.filter(u => u.id !== req.user.id);
+  for (const [token, uid] of sessions) if (uid === req.user.id) sessions.delete(token);
+  saveDB();
+  res.json({ ok: true });
 });
 
 app.put('/api/block', auth, (req, res) => {
@@ -150,8 +206,10 @@ app.get('/api/messages/:peerId', auth, (req, res) => {
   const thread = db.messages
     .filter(m => !m.deleted && ((m.fromUser === req.user.id && m.toUser === peerId) || (m.fromUser === peerId && m.toUser === req.user.id)))
     .sort((a, b) => a.createdAt - b.createdAt);
-  thread.forEach(m => { if (m.toUser === req.user.id) m.read = true; });
+  const newlyRead = [];
+  thread.forEach(m => { if (m.toUser === req.user.id && !m.read) { m.read = true; newlyRead.push(m.id); } });
   saveDB();
+  if (newlyRead.length && peerId !== req.user.id) emitToUser(peerId, 'message:read', { ids: newlyRead, by: req.user.id });
   res.json({ messages: thread });
 });
 
@@ -261,5 +319,4 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('Soomling server running on :' + PORT));
+start();
