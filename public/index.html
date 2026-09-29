@@ -36,6 +36,8 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .icon-btn:hover{background:var(--hover);color:var(--text)}
 .hidden{display:none!important}
 .avatar{border-radius:50%;object-fit:cover;background:linear-gradient(135deg,var(--accent),#1d5a8a);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0}
+.avatar.eliteRing{box-shadow:0 0 0 2px #f5a623,0 0 0 4px rgba(245,166,35,.25);animation:eliteGlow 2.2s ease-in-out infinite}
+@keyframes eliteGlow{0%,100%{box-shadow:0 0 0 2px #f5a623,0 0 8px 2px rgba(245,166,35,.35)}50%{box-shadow:0 0 0 2px #ffcf6b,0 0 14px 5px rgba(245,166,35,.55)}}
 @keyframes fadeScale{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
 @keyframes msgIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.7)}50%{box-shadow:0 0 0 8px rgba(34,197,94,0)}}
@@ -43,7 +45,26 @@ input:focus,textarea:focus{border-color:var(--accent)}
 
 /* ---- Auth ---- */
 #authScreen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10}
-.authBox{width:360px;max-width:92vw;padding:32px;animation:fadeScale .25s}
+#bootSplash{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border-radius:0}
+#bootSplash.hidden{display:none}
+.splashLogo{font-size:56px;animation:splashPulse 1.8s ease-in-out infinite}
+.splashTitle{font-size:19px;font-weight:700;letter-spacing:.3px;opacity:0;animation:fadeScale .6s ease forwards .15s}
+.splashDots{display:flex;gap:6px}
+.splashDots span{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:typingDot 1.2s infinite}
+.splashDots span:nth-child(2){animation-delay:.2s}.splashDots span:nth-child(3){animation-delay:.4s}
+@keyframes splashPulse{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.12);opacity:1}}
+#connLostOverlay{position:fixed;top:0;left:0;right:0;z-index:25;display:flex;align-items:center;justify-content:center;gap:10px;padding:10px;background:linear-gradient(180deg,rgba(0,0,0,.55),transparent);color:#fff;font-size:13px;animation:slideDown .3s ease}
+@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+.connSpinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.authBox{width:360px;max-width:92vw;padding:32px;animation:fadeScale .25s;text-align:center}
+.authLogo{width:76px;height:76px;border-radius:50%;background:linear-gradient(145deg,var(--accent),#7c5bd8);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 14px;box-shadow:0 8px 24px rgba(43,155,218,.35);animation:splashPulse 3s ease-in-out infinite}
+.authBox h1{font-size:20px;text-align:center}
+.authBox p{text-align:center}
+.phoneRow{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid var(--glass-border);border-radius:18px;padding:0 12px;margin-bottom:12px}
+.phoneRow .phonePrefix{font-size:15px}
+.phoneRow input{border:none;background:none;padding:10px 4px;margin:0;flex:1}
+.phoneRow input:focus{border:none}
 .authBox h1{font-size:22px;margin-bottom:4px}
 .authBox p{color:var(--dim);font-size:13px;margin-bottom:20px}
 .authBox input{width:100%;margin-bottom:12px}
@@ -210,28 +231,40 @@ input:focus,textarea:focus{border-color:var(--accent)}
 <div class="blob blob1"></div><div class="blob blob2"></div><div class="blob blob3"></div>
 
 <!-- AUTH -->
+<div id="bootSplash" class="glass">
+  <div class="splashLogo">💬</div>
+  <div class="splashTitle">Soomling Messenger</div>
+  <div class="splashDots"><span></span><span></span><span></span></div>
+</div>
+<div id="connLostOverlay" class="hidden">
+  <div class="connSpinner"></div>
+  <div>Восстанавливаем соединение...</div>
+</div>
 <div id="authScreen">
   <div class="glass authBox" id="loginBox">
-    <h1>💬 Soomling Messenger</h1>
-    <p>Войдите в свой аккаунт</p>
+    <div class="authLogo">💬</div>
+    <h1>Soomling Messenger</h1>
+    <p>Введите номер телефона и пароль для входа</p>
     <div class="err" id="loginErr"></div>
-    <input id="loginPhone" placeholder="Телефон, напр. +79991234567">
+    <div class="phoneRow"><span class="phonePrefix">📱</span><input id="loginPhone" placeholder="+7 999 123-45-67"></div>
     <input id="loginPass" type="password" placeholder="Пароль">
-    <button class="btn" onclick="doLogin()">Войти</button>
+    <button class="btn" onclick="doLogin()">Продолжить →</button>
     <div class="switchLink">Нет аккаунта? <a onclick="toggleAuth()">Зарегистрироваться</a></div>
   </div>
   <div class="glass authBox hidden" id="regBox">
-    <h1>💬 Soomling Messenger</h1>
-    <p>Создайте аккаунт</p>
+    <div class="authLogo">💬</div>
+    <h1>Soomling Messenger</h1>
+    <p>Создайте аккаунт по номеру телефона</p>
     <div class="err" id="regErr"></div>
     <input id="regName" placeholder="Отображаемое имя">
-    <input id="regPhone" placeholder="Телефон, напр. +79991234567">
+    <div class="phoneRow"><span class="phonePrefix">📱</span><input id="regPhone" placeholder="+7 999 123-45-67"></div>
     <input id="regPass" type="password" placeholder="Пароль (мин. 6 символов)">
     <input id="regPass2" type="password" placeholder="Повторите пароль">
-    <button class="btn" onclick="doRegister()">Зарегистрироваться</button>
+    <button class="btn" onclick="doRegister()">Зарегистрироваться →</button>
     <div class="switchLink">Уже есть аккаунт? <a onclick="toggleAuth()">Войти</a></div>
   </div>
 </div>
+
 
 <!-- APP -->
 <div id="app">
@@ -328,6 +361,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
         <div class="stBtn" data-p="appearance" onclick="stSwitch('appearance')">Внешний вид</div>
         <div class="stBtn" data-p="notif" onclick="stSwitch('notif')">Уведомления</div>
         <div class="stBtn" data-p="privacy" onclick="stSwitch('privacy')">Приватность</div>
+        <div class="stBtn hidden" id="adminTabBtn" data-p="admin" onclick="stSwitch('admin');loadAdminUsers()">🛡 Админка</div>
         <div class="stBtn" data-p="about" onclick="stSwitch('about')">О программе</div>
       </div>
       <div class="settingPane active" data-p="profile">
@@ -363,6 +397,12 @@ input:focus,textarea:focus{border-color:var(--accent)}
           <button class="btn-ghost" onclick="logout()">⏻ Выйти из аккаунта</button>
           <button class="btn-ghost" style="color:var(--red)" onclick="deleteAccount()">🗑 Удалить аккаунт навсегда</button>
         </div>
+      </div>
+      <div class="settingPane" data-p="admin">
+        <div style="font-size:11.5px;color:var(--dim);background:rgba(255,255,255,.04);padding:10px;border-radius:8px;margin-bottom:10px">
+          Здесь можно заблокировать вход или удалить нарушителя. Содержимое чужих переписок не показывается и не хранится доступным для чтения — это принципиально.
+        </div>
+        <div id="adminUserList"></div>
       </div>
       <div class="settingPane" data-p="about" style="text-align:center;gap:6px">
         <div style="font-size:40px">💬</div>
@@ -437,7 +477,10 @@ input:focus,textarea:focus{border-color:var(--accent)}
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-let TOKEN=localStorage.getItem('sm_token')||null;
+function setCookie(name,val,days){ const d=new Date(); d.setTime(d.getTime()+days*864e5); document.cookie=`${name}=${encodeURIComponent(val)};expires=${d.toUTCString()};path=/;SameSite=Lax`; }
+function getCookie(name){ const m=document.cookie.match(new RegExp('(^| )'+name+'=([^;]+)')); return m?decodeURIComponent(m[2]):null; }
+function saveToken(t){ TOKEN=t; if(t){ localStorage.setItem('sm_token',t); setCookie('sm_token',t,365); } else { localStorage.removeItem('sm_token'); setCookie('sm_token','',-1); } }
+let TOKEN=localStorage.getItem('sm_token')||getCookie('sm_token')||null;
 let me=null, socket=null, activeChatUserId=null, conversations=[], messagesCache={}, callsCache=[], stories=[], usersCache={};
 let localStream=null, callTimerInt=null, callSeconds=0, currentCallType=null, currentCallPeerId=null, isCaller=false, micOn=true, camOn=true;
 let pc=null, pendingOffer=null, pendingIce=[];
@@ -460,6 +503,7 @@ function renderAvatar(el,user){
   if(!user) return;
   if(user.avatar){el.style.backgroundImage=`url(${user.avatar})`;el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.textContent='';}
   else{el.style.backgroundImage='';el.style.background=avColor(user.id);el.textContent=initials(user.displayName);}
+  el.classList.toggle('eliteRing', user.badge==='elite'||user.badge==='creator');
 }
 function escapeHtml(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function fmtTime(ts){return new Date(ts).toTimeString().slice(0,5);}
@@ -492,7 +536,7 @@ async function doRegister(){
   if(password!==pass2){err.textContent='Пароли не совпадают';return;}
   try{
     const data=await api('/api/register',{method:'POST',body:JSON.stringify({phone,password,displayName})});
-    TOKEN=data.token; localStorage.setItem('sm_token',TOKEN); me=data.user; boot();
+    saveToken(data.token); me=data.user; boot();
   }catch(e){ err.textContent= e.error==='phone_taken'?'Этот номер уже зарегистрирован':'Ошибка регистрации'; }
 }
 async function doLogin(){
@@ -500,16 +544,17 @@ async function doLogin(){
   const err=$('loginErr'); err.textContent='';
   try{
     const data=await api('/api/login',{method:'POST',body:JSON.stringify({phone,password})});
-    TOKEN=data.token; localStorage.setItem('sm_token',TOKEN); me=data.user; boot();
-  }catch(e){ err.textContent='Неверный номер или пароль'; }
+    saveToken(data.token); me=data.user; boot();
+  }catch(e){ err.textContent = e.error==='suspended' ? 'Аккаунт заблокирован администрацией' : 'Неверный номер или пароль'; }
 }
-function logout(){ localStorage.removeItem('sm_token'); location.reload(); }
+function logout(){ saveToken(null); location.reload(); }
 
 /* ===== BOOT ===== */
 async function boot(){
-  if(!TOKEN){ $('authScreen').style.display='flex'; return; }
+  if(!TOKEN){ $('bootSplash').classList.add('hidden'); $('authScreen').style.display='flex'; return; }
   try{ const data=await api('/api/me'); me=data.user; }
-  catch(e){ localStorage.removeItem('sm_token'); TOKEN=null; $('authScreen').style.display='flex'; return; }
+  catch(e){ saveToken(null); $('bootSplash').classList.add('hidden'); $('authScreen').style.display='flex'; return; }
+  $('bootSplash').classList.add('hidden');
   $('authScreen').style.display='none';
   $('app').classList.add('on');
   usersCache[me.id]=me;
@@ -521,15 +566,16 @@ async function boot(){
 }
 function connectSocket(){
   socket=io({transports:['websocket','polling']});
-  socket.on('connect',()=>{ socket.emit('auth',TOKEN); $('connStatus').textContent=''; });
-  socket.on('disconnect',()=>{ $('connStatus').textContent='⚠️ Нет соединения с сервером...'; });
+  socket.on('connect',()=>{ socket.emit('auth',TOKEN); $('connLostOverlay').classList.add('hidden'); });
+  socket.on('disconnect',()=>{ $('connLostOverlay').classList.remove('hidden'); });
+  socket.on('reconnect_attempt',()=>{ $('connLostOverlay').classList.remove('hidden'); });
   socket.on('auth:ok',u=>{ me=u; usersCache[me.id]=me; renderAvatar($('myAv'),me); });
   socket.on('message:new',async msg=>{
     const peer=msg.fromUser===me.id?msg.toUser:msg.fromUser;
     (messagesCache[peer]=messagesCache[peer]||[]).push(msg);
     await loadConversations();
     if(activeChatUserId===peer) appendMessageEl(msg);
-    if(msg.toUser===me.id){ playSound(); vibrate(); }
+    if(msg.toUser===me.id){ playSound('receive'); vibrate(); }
   });
   socket.on('message:deleted',({id,peer})=>{
     const arr=messagesCache[peer]; if(arr){ const m=arr.find(x=>x.id===id); if(m) m.deleted=true; }
@@ -835,6 +881,7 @@ function sendMessage(){
   const text=$('msgInput').value.trim(); if(!text||!activeChatUserId) return;
   socket.emit('message:send',{toUser:activeChatUserId,text,type:'text'});
   $('msgInput').value=''; $('msgInput').style.height='auto';
+  playSound('send');
 }
 function sendFile(e){
   const f=e.target.files[0]; if(!f||!activeChatUserId) return;
@@ -870,7 +917,8 @@ function stickerFace(mood){
 }
 function stickerSVG(s){
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="${s.c}"/>${stickerFace(s.mood)}</svg>`;
-  return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+  const b64=btoa(unescape(encodeURIComponent(svg)));
+  return 'data:image/svg+xml;base64,'+b64;
 }
 function toggleStickers(){
   $('emojiPicker').classList.add('hidden');
@@ -938,7 +986,26 @@ function openSettings(pane){
   $('settingsModal').classList.remove('hidden');
   $('setName').value=me.displayName; $('setBio').value=me.bio||''; $('setPhone').value=me.phone; $('setUsername').value=me.username||'';
   $('usernameErr').textContent='';
+  $('adminTabBtn').classList.toggle('hidden', !(me.badge==='creator'||me.badge==='elite'));
   renderAvatar($('setAv'),me); renderBlockList(); stSwitch(pane||'profile');
+}
+async function loadAdminUsers(){
+  const box=$('adminUserList'); box.innerHTML='Загрузка...';
+  try{
+    const {users}=await api('/api/admin/users');
+    box.innerHTML='';
+    users.filter(u=>u.id!==me.id).forEach(u=>{
+      const row=document.createElement('div'); row.className='blockRow';
+      row.innerHTML=`<span>${escapeHtml(u.displayName)} <span style="color:var(--dim);font-size:11px">${u.phone}${u.suspended?' · заблокирован':''}</span></span>`;
+      const btns=document.createElement('div'); btns.style.cssText='display:flex;gap:6px';
+      const sBtn=document.createElement('button'); sBtn.className='btn-ghost'; sBtn.textContent=u.suspended?'Разблокировать':'Заблокировать';
+      sBtn.onclick=async()=>{ await api('/api/admin/suspend',{method:'PUT',body:JSON.stringify({userId:u.id,suspended:!u.suspended})}); loadAdminUsers(); };
+      const dBtn=document.createElement('button'); dBtn.className='btn-ghost'; dBtn.style.color='var(--red)'; dBtn.textContent='Удалить';
+      dBtn.onclick=async()=>{ if(!confirm('Удалить аккаунт '+u.displayName+' навсегда?'))return; await api('/api/admin/users/'+u.id,{method:'DELETE'}); loadAdminUsers(); };
+      btns.append(sBtn,dBtn); row.appendChild(btns); box.appendChild(row);
+    });
+    if(!users.filter(u=>u.id!==me.id).length) box.innerHTML='<span style="color:var(--dim);font-size:13px">Других пользователей пока нет</span>';
+  }catch(e){ box.innerHTML='<span style="color:var(--red);font-size:13px">Нет доступа</span>'; }
 }
 function stSwitch(p){
   document.querySelectorAll('.stBtn').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
@@ -957,7 +1024,7 @@ async function deleteAccount(){
   if(!confirm('Удалить аккаунт навсегда? Это действие необратимо.')) return;
   if(!confirm('Точно? Все ваши сообщения и данные будут удалены безвозвратно.')) return;
   try{ await api('/api/account',{method:'DELETE'}); }catch(e){}
-  localStorage.removeItem('sm_token'); location.reload();
+  saveToken(null); location.reload();
 }
 function changeAvatar(e){
   const f=e.target.files[0]; if(!f) return;
@@ -971,14 +1038,25 @@ function changeAvatar(e){
 
 /* ===== SOUND ===== */
 let actx;
-function playSound(){
+const sndSend=new Audio('/sounds/send.mp3');
+const sndReceive=new Audio('/sounds/receive.mp3');
+const sndRingtone=new Audio('/sounds/ringtone.mp3'); sndRingtone.loop=true;
+function playSound(kind){
   const s=loadSettings(); if(!s.sound) return;
+  try{
+    const el = kind==='send' ? sndSend : sndReceive;
+    el.currentTime=0; el.play().catch(()=>{});
+  }catch(e){ beep(); }
+}
+function beep(){
   try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)();
     const o=actx.createOscillator(),g=actx.createGain(); o.frequency.value=880; o.connect(g); g.connect(actx.destination);
     g.gain.setValueAtTime(.08,actx.currentTime); g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+.25);
     o.start(); o.stop(actx.currentTime+.25);
   }catch(e){}
 }
+function startRingtone(){ const s=loadSettings(); if(!s.sound) return; try{ sndRingtone.currentTime=0; sndRingtone.play().catch(()=>{}); }catch(e){} }
+function stopRingtone(){ try{ sndRingtone.pause(); sndRingtone.currentTime=0; }catch(e){} }
 function vibrate(){ const s=loadSettings(); if(s.vibrate&&navigator.vibrate) navigator.vibrate([200,100,200]); }
 
 /* ===== STORIES ===== */
@@ -1092,6 +1170,7 @@ function showCallScreen(peer,type,statusText){
 function tickTimer(){ clearInterval(callTimerInt); callTimerInt=setInterval(()=>{ callSeconds++; const m=String(Math.floor(callSeconds/60)).padStart(2,'0'),s=String(callSeconds%60).padStart(2,'0'); $('callTimer').textContent=`${m}:${s}`; },1000); }
 function endCallLocal(){
   clearInterval(callTimerInt);
+  stopRingtone();
   if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
   if(pc){pc.close();pc=null;}
   $('remoteVid')?.remove(); $('remoteAudio')?.remove();
@@ -1113,9 +1192,10 @@ async function handleIncomingInvite(data){
   if((me.blocked||[]).includes(data.from)) return;
   renderAvatar($('inAv'),peer); $('inName').textContent=peer.displayName;
   $('inType').textContent=(data.type==='video'?'Видеозвонок':'Аудиозвонок')+'...';
-  $('incomingCall').classList.remove('hidden'); playSound(); vibrate();
+  $('incomingCall').classList.remove('hidden'); startRingtone(); vibrate();
 }
 async function acceptCall(){
+  stopRingtone();
   $('incomingCall').classList.add('hidden');
   const peer=await getUserCached(incomingFrom);
   currentCallType=incomingType; currentCallPeerId=incomingFrom; isCaller=false;
@@ -1130,6 +1210,7 @@ async function acceptCall(){
   socket.emit('call:answer',{sdp:pc.localDescription,to:incomingFrom});
 }
 function rejectCall(){
+  stopRingtone();
   $('incomingCall').classList.add('hidden');
   socket.emit('call:reject',{to:incomingFrom,callType:incomingType});
   incomingFrom=null; pendingOffer=null; loadCalls();
