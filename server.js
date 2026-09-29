@@ -112,6 +112,36 @@ function auth(req, res, next) {
   next();
 }
 
+function isPrivileged(u) { return u && (u.badge === 'creator' || u.badge === 'elite'); }
+
+app.get('/api/admin/users', auth, (req, res) => {
+  if (!isPrivileged(req.user)) return res.status(403).json({ error: 'forbidden' });
+  res.json({ users: db.users.map(publicUser) });
+});
+
+app.put('/api/admin/suspend', auth, (req, res) => {
+  if (!isPrivileged(req.user)) return res.status(403).json({ error: 'forbidden' });
+  const { userId, suspended } = req.body || {};
+  const target = findUser(userId);
+  if (!target) return res.status(404).json({ error: 'not_found' });
+  if (target.badge === 'creator') return res.status(403).json({ error: 'cannot_suspend_creator' });
+  target.suspended = !!suspended;
+  saveDB();
+  for (const [token, uid] of sessions) if (uid === userId && suspended) sessions.delete(token);
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/users/:id', auth, (req, res) => {
+  if (!isPrivileged(req.user)) return res.status(403).json({ error: 'forbidden' });
+  const target = findUser(req.params.id);
+  if (!target) return res.status(404).json({ error: 'not_found' });
+  if (target.badge === 'creator') return res.status(403).json({ error: 'cannot_delete_creator' });
+  db.users = db.users.filter(u => u.id !== req.params.id);
+  for (const [token, uid] of sessions) if (uid === req.params.id) sessions.delete(token);
+  saveDB();
+  res.json({ ok: true });
+});
+
 app.post('/api/register', (req, res) => {
   const { phone, password, displayName } = req.body || {};
   if (!phone || !password || !displayName) return res.status(400).json({ error: 'missing_fields' });
@@ -132,6 +162,7 @@ app.post('/api/login', (req, res) => {
   if (!user || !bcrypt.compareSync(password || '', user.password)) {
     return res.status(401).json({ error: 'invalid_credentials' });
   }
+  if (user.suspended) return res.status(403).json({ error: 'suspended' });
   res.json({ token: issueToken(user.id), user: publicUser(user) });
 });
 
@@ -318,5 +349,21 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+async function flushDB() {
+  clearTimeout(saveTimer);
+  if (mongoDb) {
+    for (const col of COLLECTIONS) {
+      try {
+        await mongoDb.collection(col).deleteMany({});
+        if (db[col].length) await mongoDb.collection(col).insertMany(db[col].map(x => ({ ...x })), { ordered: false });
+      } catch (e) { console.error('Mongo flush error (' + col + '):', e.message); }
+    }
+  } else {
+    try { fs.writeFileSync(DB_FILE, JSON.stringify(db)); } catch (e) {}
+  }
+}
+process.on('SIGTERM', async () => { await flushDB(); process.exit(0); });
+process.on('SIGINT', async () => { await flushDB(); process.exit(0); });
 
 start();
