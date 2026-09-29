@@ -208,7 +208,8 @@ input:focus,textarea:focus{border-color:var(--accent)}
   #infoPanel{display:none}
   .msg{max-width:78%}
   #backBtn{display:flex!important}
-  #bottomNav{display:flex;position:fixed;left:0;right:0;bottom:0;height:56px;background:var(--glass);backdrop-filter:blur(18px);border-top:1px solid var(--glass-border);z-index:10;padding-bottom:env(safe-area-inset-bottom,0px)}
+  #bottomNav{display:none;position:fixed;left:0;right:0;bottom:0;height:56px;background:var(--glass);backdrop-filter:blur(18px);border-top:1px solid var(--glass-border);z-index:10;padding-bottom:env(safe-area-inset-bottom,0px)}
+  #app.on ~ #bottomNav{display:flex}
   #bottomNav.hideOnChat{display:none}
   .bnBtn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--dim);font-size:10px;position:relative}
   .bnBtn.active{color:var(--accent)}
@@ -330,7 +331,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
       </div>
       <div id="inputBar">
         <button class="icon-btn" onclick="toggleEmoji()">😀</button>
-        <button class="icon-btn" title="Стикеры" onclick="toggleStickers()">🧩</button>
+        <button class="icon-btn" title="Стикеры" onclick="toggleStickers()" style="font-weight:800;font-size:15px">S</button>
         <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="sendFile(event)">
         <button class="icon-btn" title="Фото" onclick="document.getElementById('fileInput').click()"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 4 7.5 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3.5L15 4H9zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></button>
         <textarea id="msgInput" rows="1" placeholder="Написать сообщение..." oninput="onTyping()" onkeydown="onKeyDown(event)"></textarea>
@@ -1038,9 +1039,9 @@ function changeAvatar(e){
 
 /* ===== SOUND ===== */
 let actx;
-const sndSend=new Audio('/sounds/send.mp3');
-const sndReceive=new Audio('/sounds/receive.mp3');
-const sndRingtone=new Audio('/sounds/ringtone.mp3'); sndRingtone.loop=true;
+const sndSend=new Audio('/send.mp3');
+const sndReceive=new Audio('/receive.mp3');
+const sndRingtone=new Audio('/ringtone.mp3'); sndRingtone.loop=true;
 function playSound(kind){
   const s=loadSettings(); if(!s.sound) return;
   try{
