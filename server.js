@@ -10,7 +10,7 @@ const { MongoClient } = require('mongodb');
 const DB_FILE = path.join(__dirname, 'db.json');
 const ADMIN_PHONE = '+79996081231';
 const ADMIN_PASS = '1234321';
-const ELITE_PHONE = '+8888888888';
+const ELITE_PHONES = ['+8888888888', '+555555555'];
 const MONGODB_URI = process.env.MONGODB_URI || '';
 
 // ---------- persistence: MongoDB if MONGODB_URI is set, otherwise local JSON file ----------
@@ -76,8 +76,10 @@ async function seedAdmin() {
   } else {
     admin.password = hash; admin.isAdmin = true; admin.badge = 'creator';
   }
-  const elite = findByPhone(ELITE_PHONE);
-  if (elite && elite.badge !== 'creator') elite.badge = 'elite';
+  for (const phone of ELITE_PHONES) {
+    const elite = findByPhone(phone);
+    if (elite && elite.badge !== 'creator') elite.badge = 'elite';
+  }
   saveDB();
 }
 
@@ -150,7 +152,7 @@ app.post('/api/register', (req, res) => {
   const user = {
     id: crypto.randomUUID(), phone, password: bcrypt.hashSync(password, 8), username: null,
     displayName, avatar: null, bio: '', status: 'online', lastSeen: Date.now(),
-    createdAt: Date.now(), isAdmin: false, badge: phone === ELITE_PHONE ? 'elite' : null, blocked: []
+    createdAt: Date.now(), isAdmin: false, badge: ELITE_PHONES.includes(phone) ? 'elite' : null, blocked: []
   };
   db.users.push(user); saveDB();
   res.json({ token: issueToken(user.id), user: publicUser(user) });
@@ -304,11 +306,24 @@ io.on('connection', (socket) => {
       id: crypto.randomUUID(), fromUser: currentUser.id, toUser: msg.toUser,
       text: (msg.text || '').slice(0, 4000), type: msg.type || 'text',
       fileData: msg.fileData || null, duration: msg.duration || null,
-      createdAt: Date.now(), read: false, deleted: false
+      createdAt: Date.now(), read: false, deleted: false, edited: false,
+      replyTo: msg.replyTo ? { id: msg.replyTo.id, fromUser: msg.replyTo.fromUser, text: (msg.replyTo.text || '').slice(0, 200), type: msg.replyTo.type } : null,
+      forwardedFrom: msg.forwardedFrom || null
     };
     db.messages.push(full); saveDB();
     socket.emit('message:new', full);
     emitToUser(msg.toUser, 'message:new', full);
+  });
+
+  socket.on('message:edit', ({ id, text }) => {
+    if (!currentUser) return;
+    const m = db.messages.find(x => x.id === id);
+    if (!m || m.fromUser !== currentUser.id || m.type !== 'text') return;
+    m.text = (text || '').slice(0, 4000); m.edited = true;
+    saveDB();
+    const payload = { id: m.id, text: m.text, peer: m.toUser };
+    socket.emit('message:edited', payload);
+    emitToUser(m.toUser, 'message:edited', { ...payload, peer: currentUser.id });
   });
 
   socket.on('story:new', (story) => {
