@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Soomling Messenger</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0e1621">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="icon" href="/icons/icon-192.png">
 <style>
 
 :root{
@@ -174,6 +178,21 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .modalHead{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--glass-border);position:sticky;top:0;background:inherit}
 .modalBody{padding:20px}
 .settingsTabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+#settingsModalBox{width:400px;max-width:92vw;max-height:86vh;overflow:hidden;padding:0}
+.stTrack{display:flex;width:500%;transition:transform .32s cubic-bezier(.4,0,.2,1)}
+.stView{width:20%;flex-shrink:0;max-height:86vh;overflow-y:auto}
+.setRow{display:flex;align-items:center;gap:12px;padding:13px 6px;cursor:pointer;border-radius:10px;transition:.15s}
+.setRow:hover{background:var(--hover)}
+.setIcon{font-size:18px;width:22px;text-align:center}
+.setChevron{margin-left:auto;color:var(--dim);font-size:18px}
+.setDivider{height:1px;background:var(--glass-border);margin:8px 0}
+.avCamBadge{position:absolute;bottom:0;right:0;width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;border:2px solid var(--glass)}
+.charCount{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:10.5px;color:var(--dim)}
+.pvActions{display:flex;gap:4px;width:100%;margin-top:10px}
+.pvAct{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 2px;border-radius:12px;background:var(--hover);cursor:pointer;font-size:11px;color:var(--dim);transition:.15s}
+.pvAct:hover{background:var(--active);color:var(--text)}
+.pvActIcon{font-size:17px}
+.pvPhoneBox{width:100%;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.04);border-radius:10px;padding:10px 12px;margin-top:10px}
 .stBtn{padding:7px 12px;border-radius:10px;background:rgba(255,255,255,.06);font-size:12.5px;color:var(--dim)}
 .stBtn.active{background:var(--accent);color:#fff}
 .settingPane{display:none;flex-direction:column;gap:12px}
@@ -221,7 +240,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
   #infoPanel{display:none}
   .msg{max-width:78%}
   #backBtn{display:flex!important}
-  #bottomNav{display:none;position:fixed;left:0;right:0;bottom:0;height:56px;background:var(--glass);backdrop-filter:blur(18px);border-top:1px solid var(--glass-border);z-index:10;padding-bottom:env(safe-area-inset-bottom,0px)}
+  #bottomNav{display:none;position:fixed;left:0;right:0;bottom:0;height:56px;background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 -1px 12px rgba(0,0,0,.25);z-index:10;padding-bottom:env(safe-area-inset-bottom,0px)}
   #bottomNav.shown{display:flex}
   #bottomNav.hideOnChat{display:none}
   #chatPanel.show{z-index:11}
@@ -372,59 +391,97 @@ input:focus,textarea:focus{border-color:var(--accent)}
   <div class="bnBtn" onclick="openSettings('profile')"><span>⚙️</span>Настройки</div>
 </div>
 
-<!-- SETTINGS MODAL -->
+<!-- SETTINGS MODAL (list menu + sliding drill-down views) -->
 <div class="modalWrap hidden" id="settingsModal">
-  <div class="glass modal">
-    <div class="modalHead"><b>Настройки</b><button class="icon-btn" onclick="closeModal('settingsModal')">✕</button></div>
-    <div class="modalBody">
-      <div class="settingsTabs">
-        <div class="stBtn active" data-p="profile" onclick="stSwitch('profile')">Профиль</div>
-        <div class="stBtn" data-p="appearance" onclick="stSwitch('appearance')">Внешний вид</div>
-        <div class="stBtn" data-p="notif" onclick="stSwitch('notif')">Уведомления</div>
-        <div class="stBtn" data-p="privacy" onclick="stSwitch('privacy')">Приватность</div>
-        <div class="stBtn" data-p="about" onclick="stSwitch('about')">О программе</div>
-      </div>
-      <div class="settingPane active" data-p="profile">
-        <div class="bigAv avatar" id="setAv" onclick="document.getElementById('avFile').click()">?</div>
-        <input type="file" id="avFile" class="hidden" accept="image/*" onchange="changeAvatar(event)">
-        <label>Имя</label><input id="setName">
-        <label>Юзернейм (латиница, цифры, _)</label><input id="setUsername" placeholder="username">
-        <div class="err" id="usernameErr" style="min-height:14px"></div>
-        <label>О себе</label><textarea id="setBio" rows="3" maxlength="200"></textarea>
-        <label>Телефон</label><input id="setPhone" disabled>
-        <button class="btn" onclick="saveProfile()">Сохранить</button>
-      </div>
-      <div class="settingPane" data-p="appearance">
-        <div class="row"><span>Тёмная тема</span><div class="switch on" id="themeSwitch" onclick="toggleTheme()"></div></div>
-        <label>Размер шрифта</label>
-        <input type="range" min="12" max="20" id="fontRange" oninput="setFontSize(this.value)">
-        <label>Цвет акцента</label>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="color" id="accentPicker" value="#2b9bda" oninput="setAccent(this.value)" style="width:44px;height:34px;padding:2px;border-radius:8px">
-          <div style="display:flex;gap:6px" id="swatchRow"></div>
-        </div>
-        <label>Прозрачность стекла</label>
-        <input type="range" min="40" max="95" id="glassRange" oninput="setGlass(this.value)">
-      </div>
-      <div class="settingPane" data-p="notif">
-        <div class="row"><span>Звуки</span><div class="switch on" id="soundSwitch" onclick="toggleSetting('sound')"></div></div>
-        <div class="row"><span>Вибрация</span><div class="switch on" id="vibSwitch" onclick="toggleSetting('vibrate')"></div></div>
-      </div>
-      <div class="settingPane" data-p="privacy">
-        <b>Чёрный список</b>
-        <div id="blockList" style="margin-top:10px"></div>
-        <div style="border-top:1px solid var(--glass-border);margin-top:16px;padding-top:16px;display:flex;flex-direction:column;gap:10px">
-          <button class="btn-ghost" onclick="logout()">⏻ Выйти из аккаунта</button>
-          <button class="btn-ghost" style="color:var(--red)" onclick="deleteAccount()">🗑 Удалить аккаунт навсегда</button>
+  <div class="glass modal" id="settingsModalBox">
+    <div class="stTrack" id="stTrack">
+
+      <!-- MENU -->
+      <div class="stView" data-view="menu">
+        <div class="modalHead"><b>Настройки</b><button class="icon-btn" onclick="closeModal('settingsModal')">✕</button></div>
+        <div class="modalBody" style="padding-top:8px">
+          <div class="setRow" onclick="stGo('profile')" style="padding:10px">
+            <div class="avatar" id="setMenuAv" style="width:48px;height:48px;font-size:16px"></div>
+            <div style="flex:1;min-width:0"><b id="setMenuName" style="display:block"></b><span style="color:var(--dim);font-size:12.5px" id="setMenuPhone"></span></div>
+            <span class="setChevron">›</span>
+          </div>
+          <div class="setDivider"></div>
+          <div class="setRow" onclick="stGo('appearance')"><span class="setIcon">🎨</span><span>Оформление</span><span class="setChevron">›</span></div>
+          <div class="setRow" onclick="stGo('notif')"><span class="setIcon">🔔</span><span>Уведомления</span><span class="setChevron">›</span></div>
+          <div class="setRow" onclick="stGo('privacy')"><span class="setIcon">🔒</span><span>Приватность</span><span class="setChevron">›</span></div>
+          <div class="setRow" onclick="stGo('about')"><span class="setIcon">ℹ️</span><span>О программе</span><span class="setChevron">›</span></div>
         </div>
       </div>
-      <div class="settingPane" data-p="about" style="text-align:center;gap:6px">
-        <div style="font-size:40px">💬</div>
-        <b>Soomling Messenger</b>
-        <span style="color:var(--dim)">Версия 2.1.0 · сервер · 2025</span>
-        <span style="color:var(--dim)">Автор: Soomling</span>
-        <a href="mailto:Pido2773@gmail.com" style="color:var(--accent-h)">Pido2773@gmail.com</a>
+
+      <!-- PROFILE -->
+      <div class="stView" data-view="profile">
+        <div class="modalHead"><button class="icon-btn" onclick="stGo('menu')">‹</button><b>Редактировать профиль</b><span style="width:36px"></span></div>
+        <div class="modalBody" style="display:flex;flex-direction:column;align-items:center;gap:10px">
+          <div style="position:relative">
+            <div class="bigAv avatar" id="setAv" onclick="chooseAvatarSource()">?</div>
+            <div class="avCamBadge" onclick="chooseAvatarSource()">📷</div>
+          </div>
+          <input type="file" id="avFile" class="hidden" accept="image/*" onchange="changeAvatar(event)">
+          <div style="width:100%;position:relative"><input id="setName" style="width:100%" maxlength="60"><span class="charCount" id="nameCount"></span></div>
+          <div style="width:100%"><input id="setUsername" style="width:100%" placeholder="Юзернейм (латиница, цифры, _)"></div>
+          <div class="err" id="usernameErr" style="min-height:14px;width:100%"></div>
+          <textarea id="setBio" rows="3" maxlength="200" placeholder="О себе" style="width:100%"></textarea>
+          <input id="setPhone" disabled style="width:100%">
+          <button class="btn" style="width:100%" onclick="saveProfile()">Сохранить</button>
+          <button class="btn-ghost" style="width:100%" onclick="logout()">⏻ Выйти из профиля</button>
+        </div>
       </div>
+
+      <!-- APPEARANCE -->
+      <div class="stView" data-view="appearance">
+        <div class="modalHead"><button class="icon-btn" onclick="stGo('menu')">‹</button><b>Оформление</b><span style="width:36px"></span></div>
+        <div class="modalBody">
+          <div class="row"><span>Тёмная тема</span><div class="switch on" id="themeSwitch" onclick="toggleTheme()"></div></div>
+          <label>Размер шрифта</label>
+          <input type="range" min="12" max="20" id="fontRange" oninput="setFontSize(this.value)">
+          <label>Цвет акцента</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="color" id="accentPicker" value="#2b9bda" oninput="setAccent(this.value)" style="width:44px;height:34px;padding:2px;border-radius:8px">
+            <div style="display:flex;gap:6px" id="swatchRow"></div>
+          </div>
+          <label>Прозрачность стекла</label>
+          <input type="range" min="40" max="95" id="glassRange" oninput="setGlass(this.value)">
+        </div>
+      </div>
+
+      <!-- NOTIF -->
+      <div class="stView" data-view="notif">
+        <div class="modalHead"><button class="icon-btn" onclick="stGo('menu')">‹</button><b>Уведомления</b><span style="width:36px"></span></div>
+        <div class="modalBody">
+          <div class="row"><span>Звуки</span><div class="switch on" id="soundSwitch" onclick="toggleSetting('sound')"></div></div>
+          <div class="row"><span>Вибрация</span><div class="switch on" id="vibSwitch" onclick="toggleSetting('vibrate')"></div></div>
+        </div>
+      </div>
+
+      <!-- PRIVACY -->
+      <div class="stView" data-view="privacy">
+        <div class="modalHead"><button class="icon-btn" onclick="stGo('menu')">‹</button><b>Приватность</b><span style="width:36px"></span></div>
+        <div class="modalBody">
+          <b>Чёрный список</b>
+          <div id="blockList" style="margin-top:10px"></div>
+          <div style="border-top:1px solid var(--glass-border);margin-top:16px;padding-top:16px">
+            <button class="btn-ghost" style="width:100%;color:var(--red)" onclick="deleteAccount()">🗑 Удалить аккаунт навсегда</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABOUT -->
+      <div class="stView" data-view="about">
+        <div class="modalHead"><button class="icon-btn" onclick="stGo('menu')">‹</button><b>О программе</b><span style="width:36px"></span></div>
+        <div class="modalBody" style="text-align:center;gap:6px">
+          <div style="font-size:40px">💬</div>
+          <b>Soomling Messenger</b>
+          <span style="color:var(--dim)">Версия 2.2.0 · сервер · 2025</span>
+          <span style="color:var(--dim)">Автор: Soomling</span>
+          <a href="mailto:Pido2773@gmail.com" style="color:var(--accent-h)">Pido2773@gmail.com</a>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -442,17 +499,26 @@ input:focus,textarea:focus{border-color:var(--accent)}
   </div>
 </div>
 
-<!-- PROFILE VIEW MODAL -->
+<!-- PROFILE VIEW MODAL ("Инфо") -->
 <div class="modalWrap hidden" id="profileModal">
-  <div class="glass modal" style="width:340px;text-align:center">
-    <div class="modalHead"><b>Профиль</b><button class="icon-btn" onclick="closeModal('profileModal')">✕</button></div>
-    <div class="modalBody" style="display:flex;flex-direction:column;align-items:center;gap:8px">
+  <div class="glass modal" style="width:360px;text-align:center">
+    <div class="modalHead"><button class="icon-btn" onclick="closeModal('profileModal')">‹</button><b>Инфо</b><span style="width:36px"></span></div>
+    <div class="modalBody" style="display:flex;flex-direction:column;align-items:center;gap:6px">
       <div class="avatar" id="pvAv" style="width:90px;height:90px;font-size:30px"></div>
       <h3 id="pvName" style="font-size:17px"></h3>
       <span id="pvStatus" style="color:var(--dim);font-size:13px"></span>
-      <div style="width:100%;text-align:left;margin-top:10px">
-        <label style="font-size:11px;color:var(--dim)">Телефон</label>
-        <div id="pvPhone" style="margin-bottom:10px"></div>
+      <div class="pvActions">
+        <div class="pvAct" onclick="closeModal('profileModal');openChat(profileViewUserId)"><span class="pvActIcon">💬</span>Чат</div>
+        <div class="pvAct" onclick="closeModal('profileModal');openChat(profileViewUserId);startCall('audio')"><span class="pvActIcon">📞</span>Звонок</div>
+        <div class="pvAct" onclick="closeModal('profileModal');openChat(profileViewUserId);startCall('video')"><span class="pvActIcon">📹</span>Видео</div>
+        <div class="pvAct" onclick="closeModal('profileModal');openChat(profileViewUserId);toggleMsgSearch()"><span class="pvActIcon">🔍</span>Найти</div>
+        <div class="pvAct" onclick="closeModal('profileModal');openChat(profileViewUserId);toggleBlock()"><span class="pvActIcon">⋯</span>Ещё</div>
+      </div>
+      <div class="pvPhoneBox">
+        <div style="text-align:left"><span style="color:var(--dim);font-size:11.5px">Телефон</span><div id="pvPhone" style="font-weight:600"></div></div>
+        <button class="icon-btn" onclick="navigator.clipboard&&navigator.clipboard.writeText($('pvPhone').textContent)" title="Копировать">📋</button>
+      </div>
+      <div style="width:100%;text-align:left;margin-top:4px" id="pvBioWrap">
         <label style="font-size:11px;color:var(--dim)">О себе</label>
         <div id="pvBio"></div>
       </div>
@@ -896,9 +962,11 @@ function doMsgSearch(){
   $('msgSearchCount').textContent = count ? `Найдено: ${count}` : 'Ничего не найдено';
   if(firstMatch) firstMatch.scrollIntoView({block:'center',behavior:'smooth'});
 }
+let profileViewUserId=null;
 async function openProfileView(uid){
   if(!uid) return;
   const u=await getUserCached(uid); if(!u) return;
+  profileViewUserId=uid;
   const modal=$('profileModal');
   renderAvatar($('pvAv'),u);
   $('pvName').innerHTML=escapeHtml(u.displayName)+badgeHtml(u);
@@ -1047,6 +1115,25 @@ function sendSticker(i){
   $('stickerPicker').classList.add('hidden');
 }
 
+/* ===== PRESET AVATAR GALLERY (original generated art) ===== */
+const AVATAR_MOODS=['happy','love','laugh','cool','wink','sleepy','surprised','sad'];
+const AVATAR_COLORS=['#7c5bd8','#ef4a86','#f5a623','#2b9bda','#22c55e','#8b7fd6','#e8874a','#6d7f8f','#14b8a6','#ff6b6b','#5c6bc0','#26a69a'];
+function buildAvatarGallery(){
+  const list=[];
+  AVATAR_COLORS.forEach((c,ci)=>{ list.push({mood:AVATAR_MOODS[ci%AVATAR_MOODS.length],c}); });
+  return list;
+}
+function openAvatarGallery(onPick){
+  const gallery=buildAvatarGallery();
+  const wrap=document.createElement('div'); wrap.className='modalWrap';
+  wrap.innerHTML=`<div class="glass modal" style="width:340px"><div class="modalHead"><b>Выберите аватарку</b><button class="icon-btn" id="galClose">✕</button></div>
+    <div class="modalBody" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">${gallery.map((g,i)=>`<img data-i="${i}" src="${stickerSVG(g)}" style="width:56px;height:56px;border-radius:50%;cursor:pointer;transition:.15s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">`).join('')}</div></div>`;
+  document.body.appendChild(wrap);
+  wrap.querySelectorAll('img').forEach((img,i)=>{ img.onclick=()=>{ onPick(stickerSVG(gallery[i])); wrap.remove(); }; });
+  wrap.querySelector('#galClose').onclick=()=>wrap.remove();
+  wrap.onclick=(e)=>{ if(e.target===wrap) wrap.remove(); };
+}
+
 /* ===== VOICE MESSAGES ===== */
 async function toggleVoiceRecord(){
   if(mediaRecorder && mediaRecorder.state==='recording') return;
@@ -1096,12 +1183,23 @@ async function renderBlockList(){
 }
 
 /* ===== SETTINGS MODAL ===== */
+const ST_VIEWS=['menu','profile','appearance','notif','privacy','about'];
 function openSettings(pane){
   $('settingsModal').classList.remove('hidden');
   $('setName').value=me.displayName; $('setBio').value=me.bio||''; $('setPhone').value=me.phone; $('setUsername').value=me.username||'';
   $('usernameErr').textContent='';
-  renderAvatar($('setAv'),me); renderBlockList(); stSwitch(pane||'profile');
+  $('nameCount').textContent=(me.displayName||'').length+'/60';
+  renderAvatar($('setAv'),me); renderAvatar($('setMenuAv'),me);
+  $('setMenuName').textContent=me.displayName; $('setMenuPhone').textContent=me.phone;
+  renderBlockList();
+  stGo(pane&&pane!=='profile'?pane:'menu');
 }
+function stGo(view){
+  const i=ST_VIEWS.indexOf(view); if(i<0) return;
+  $('stTrack').style.transform=`translateX(-${i*20}%)`;
+  if(view==='admin') loadAdminUsers();
+}
+$('setName')?.addEventListener('input',function(){ $('nameCount').textContent=this.value.length+'/60'; });
 function revealAdminNav(){
   const show=me && (me.badge==='creator'||me.badge==='elite');
   $('railAdmin')?.classList.toggle('hidden',!show);
@@ -1126,10 +1224,6 @@ async function loadAdminUsers(){
     if(!users.filter(u=>u.id!==me.id).length) box.innerHTML='<span style="color:var(--dim);font-size:13px">Других пользователей пока нет</span>';
   }catch(e){ box.innerHTML='<span style="color:var(--red);font-size:13px">Нет доступа</span>'; }
 }
-function stSwitch(p){
-  document.querySelectorAll('.stBtn').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
-  document.querySelectorAll('.settingPane').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
-}
 async function saveProfile(){
   $('usernameErr').textContent='';
   try{
@@ -1148,11 +1242,27 @@ async function deleteAccount(){
 function changeAvatar(e){
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
-  r.onload=async()=>{
-    const {user}=await api('/api/profile',{method:'PUT',body:JSON.stringify({avatar:r.result})});
-    me=Object.assign(me,user); renderAvatar($('setAv'),me); renderAvatar($('myAv'),me); renderChatList(); if(activeChatUserId)renderMessages();
-  };
+  r.onload=async()=>{ await applyNewAvatar(r.result); };
   r.readAsDataURL(f);
+}
+async function applyNewAvatar(dataUrl){
+  const {user}=await api('/api/profile',{method:'PUT',body:JSON.stringify({avatar:dataUrl})});
+  me=Object.assign(me,user);
+  renderAvatar($('setAv'),me); renderAvatar($('setMenuAv'),me); renderAvatar($('myAv'),me);
+  renderChatList(); if(activeChatUserId)renderMessages();
+}
+function chooseAvatarSource(){
+  const wrap=document.createElement('div'); wrap.className='modalWrap';
+  wrap.innerHTML=`<div class="glass modal" style="width:300px"><div class="modalBody" style="display:flex;flex-direction:column;gap:8px">
+    <button class="btn-ghost" id="avUploadBtn">📁 Загрузить фото</button>
+    <button class="btn-ghost" id="avGalleryBtn">🎨 Выбрать из галереи</button>
+    <button class="btn-ghost" id="avCancelBtn">Отмена</button>
+  </div></div>`;
+  document.body.appendChild(wrap);
+  wrap.querySelector('#avUploadBtn').onclick=()=>{ wrap.remove(); $('avFile').click(); };
+  wrap.querySelector('#avGalleryBtn').onclick=()=>{ wrap.remove(); openAvatarGallery(applyNewAvatar); };
+  wrap.querySelector('#avCancelBtn').onclick=()=>wrap.remove();
+  wrap.onclick=(e)=>{ if(e.target===wrap) wrap.remove(); };
 }
 
 /* ===== SOUND ===== */
@@ -1370,6 +1480,7 @@ document.addEventListener('click',(e)=>{
 });
 document.addEventListener('DOMContentLoaded',()=>{
   $('msgInput')?.addEventListener('input',function(){ this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,120)+'px'; });
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
   boot();
 });
 
